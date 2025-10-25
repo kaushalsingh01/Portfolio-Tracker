@@ -70,3 +70,6 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"Skipped {symbol}: {e}"))
 
         self.stdout.write(self.style.SUCCESS(f"Import complete: Added {added}, Skipped {skipped}."))
+
+# python manage.py import_sp500 --refresh (1st time)
+# python manage.py import_sp500 (afterwards)
