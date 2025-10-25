@@ -7,7 +7,8 @@ __pycache__/
 !*/migrations/__init__.py
 # C extensions
 *.so
-
+# csv file
+*.csv
 # Distribution / packaging
 .Python
 build/
