@@ -122,3 +122,129 @@ class TransactionSerializer(serializers.ModelSerializer):
                         f"Cannot sell {quantity} shares. Only {total_held} available."
                     )
         return data
+    
+class PortfolioListSerializer(serializers.ModelSerializer):
+    holdings_count = serializers.IntegerField(read_only = True)
+
+    class Meta:
+        model = Portfolio
+        fields = ('id', 'name', 'description', 'created_at', 'holdings_count')
+
+class PortfolioDeatilSerializer(PortfolioSerializer):
+    holding = HoldingSerializer(many=True, read_only=True)
+    recent_transaction = serializers.SerializerMethodField()
+
+    class Meta(PortfolioSerializer.Meta):
+        fields = PortfolioSerializer.Meta.fields + ('holdings', 'recent_transactions')
+    
+    def get_recent_transactions(self, obj):
+        recent_tx = obj.transactions.all()[:5]
+        return TransactionSerializer(recent_tx, many=True).data
+    
+class TransactionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Transaction
+        fields = ('portfolio', 'stock', 'type', 'quantity', 'price')
+    
+    def create(self, validated_data):
+        # Create the transaction first
+        transaction = super().create(validated_data)
+        
+        # Update holdings based on FIFO logic
+        self.update_holdings_with_fifo(transaction)
+        
+        return transaction
+    
+    def update_holdings_with_fifo(self, transaction):
+        if transaction.type == 'BUY':
+            self._handle_buy_transaction(transaction)
+        else:  # SELL
+            self._handle_sell_transaction_fifo(transaction)
+    
+    def _handle_buy_transaction(self, transaction):
+        """Handle BUY transactions - create or update holding"""
+        holding, created = Holding.objects.get_or_create(
+            portfolio=transaction.portfolio,
+            stock=transaction.stock,
+            defaults={
+                'quantity': transaction.quantity,
+                'avg_buy_price': transaction.price
+            }
+        )
+        
+        if not created:
+            # Update existing holding with new average price
+            total_quantity = holding.quantity + transaction.quantity
+            total_value = (holding.quantity * holding.avg_buy_price) + \
+                         (transaction.quantity * transaction.price)
+            
+            holding.quantity = total_quantity
+            holding.avg_buy_price = total_value / total_quantity
+            holding.save()
+    
+    def _handle_sell_transaction_fifo(self, transaction):
+        """Handle SELL transactions using FIFO method"""
+        from django.db import models
+        from decimal import Decimal
+        
+        # Get all BUY transactions for this stock in FIFO order (oldest first)
+        buy_transactions = Transaction.objects.filter(
+            portfolio=transaction.portfolio,
+            stock=transaction.stock,
+            type='BUY',
+            quantity__gt=0  # Only consider unsold shares
+        ).order_by('timestamp')
+        
+        remaining_sell_qty = transaction.quantity
+        total_cost_basis = Decimal('0.0')
+        
+        # Process each buy transaction in FIFO order
+        for buy_tx in buy_transactions:
+            if remaining_sell_qty <= 0:
+                break
+            
+            # Determine how many shares to sell from this buy lot
+            shares_to_sell_from_lot = min(remaining_sell_qty, buy_tx.quantity)
+            
+            # Calculate cost basis for these shares
+            cost_basis_for_lot = shares_to_sell_from_lot * buy_tx.price
+            total_cost_basis += cost_basis_for_lot
+            
+            # Reduce the quantity from this buy transaction
+            buy_tx.quantity -= shares_to_sell_from_lot
+            buy_tx.save()
+            
+            remaining_sell_qty -= shares_to_sell_from_lot
+        
+        # Update or remove the holding
+        self._update_holding_after_sale(transaction, total_cost_basis)
+        
+        # Verify we sold exactly what we intended
+        if remaining_sell_qty > 0:
+            raise serializers.ValidationError(
+                f"Insufficient shares. Could only sell {transaction.quantity - remaining_sell_qty} out of {transaction.quantity} shares."
+            )
+    
+    def _update_holding_after_sale(self, transaction, total_cost_basis):
+        """Update the holding record after a sale"""
+        try:
+            holding = Holding.objects.get(
+                portfolio=transaction.portfolio,
+                stock=transaction.stock
+            )
+            
+            # Calculate remaining quantity
+            remaining_quantity = holding.quantity - transaction.quantity
+            
+            if remaining_quantity <= 0:
+                # Remove holding if no shares left
+                holding.delete()
+            else:
+                # Update holding with remaining shares
+                # Note: avg_buy_price remains the same for remaining shares
+                holding.quantity = remaining_quantity
+                holding.save()
+                
+        except Holding.DoesNotExist:
+            # This shouldn't happen if validation is working, but handle gracefully
+            raise serializers.ValidationError("No holding found for this stock.")
