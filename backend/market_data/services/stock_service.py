@@ -98,14 +98,14 @@ class StockService:
             return None
 
 
-if __name__ == "__main__":
-    results = StockService.search_stocks("apple")
-    print("Search results for 'apple':")
-    for stock in results:
-        print(stock)
-# Example usage
-    rt_data = StockService.get_real_time_quote("MSFT")
-    print(f"MSFT real-time data: {rt_data}")
+# if __name__ == "__main__":
+#     results = StockService.search_stocks("apple")
+#     print("Search results for 'apple':")
+#     for stock in results:
+#         print(stock)
+# #  Example usage
+#     rt_data = StockService.get_real_time_quote("MSFT")
+#     print(f"MSFT real-time data: {rt_data}")
 
-    ht_data = StockService.get_historical_data("MSFT")
-    print(f"MSFT historical data: {ht_data}")
+#     ht_data = StockService.get_historical_data("MSFT")
+#     print(f"MSFT historical data: {ht_data}")
