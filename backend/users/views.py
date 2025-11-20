@@ -20,6 +20,18 @@ def get_token_for_user(user):
     }
 
 class AuthViewSet(GenericViewSet):
+
+    def get_serializer_class(self):
+        if self.action == 'register':
+            return UserRegistrationSerializer
+        elif self.action == 'login':
+            return UserLoginSerializer
+        elif self.action == 'update_profile':
+            return UserProfileSerializer
+        elif self.action == 'change_password':
+            return ChangePasswordSerializer
+        return UserProfileSerializer
+    
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def register(self, request):
         serialzer = UserRegistrationSerializer(data=request.data)
@@ -28,7 +40,7 @@ class AuthViewSet(GenericViewSet):
             tokens = get_token_for_user(user)
 
             return Response({
-                'user': UserProfileSerializer(user.data),
+                'user': UserProfileSerializer(user).data,
                 'tokens': tokens,
                 'message': 'User registered successfully'
             }, status=status.HTTP_201_CREATED)
@@ -41,7 +53,7 @@ class AuthViewSet(GenericViewSet):
             user = serializer.validated_data['user']
             tokens = get_token_for_user(user)
             return Response({
-                'user': UserProfileSerializer(user.data),
+                'user': UserProfileSerializer(user).data,
                 'tokens': tokens,
                 'message': 'Login successful'
             }, status=status.HTTP_200_OK)

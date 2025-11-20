@@ -10,10 +10,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
      class Meta:
           model = CustomUser
-          fields = ['firstname', 'lastname', 'email', 'date_of_birth', 'password', 'passwod2']
+          fields = ['firstname', 'lastname', 'email', 'date_of_birth', 'password', 'password2']
           extra_kwargs = {
                'password': {'write_only': True},
-               'password': {'write_only': True},
+               'password2': {'write_only': True},
           }
 
      def validate(self, attrs):
@@ -21,9 +21,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                raise serializers.ValidationError({"password": "Password fileds didn't match"})
           return attrs
           
-     def email(self, value):
+     def validate_email(self, value):
           if CustomUser.objects.filter(email=value).exists():
-               raise serializers.ValidationError({"email" : "Email already in use"})
+               raise serializers.ValidationError("Email already in use")
           return value
           
      def create(self, validated_data):
@@ -33,13 +33,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 class UserLoginSerializer(serializers.ModelSerializer):
      email = serializers.EmailField(required=True)
      password = serializers.CharField(write_only=True, required=True)
+     class Meta:
+          model = CustomUser
+          fields = ['email', 'password']
 
      def validate(self, attrs):
           email = attrs.get('email')
           password = attrs.get('password')
           
           if email and password:
-               user = authenticate(request=self.context.get('request'), email=email, passowrd=password)
+               user = authenticate(request=self.context.get('request'), email=email, password=password)
                if not user:
                     msg = _('Credential Provided are Invalid')
                     raise serializers.ValidationError(msg, code ='authorization')
@@ -54,12 +57,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
      class Meta:
           model = CustomUser
-          fields = ['id', 'firstname', 'lastname', 'fullname', 'email',
-                    'date_of_birth', 'date_joined', 'last_login']
+          fields = ['id', 'first_name', 'last_name', 'full_name', 'email', 'date_of_birth', 'date_joined', 'last_login']
           read_only_fields = ['id', 'date_joined', 'last_login']
 
      def get_full_name(self, obj):
-          return f"{obj.firstname} {obj.lastname}"
+          return f"{obj.first_name} {obj.last_name}"
           
 class ChangePasswordSerializer(serializers.Serializer):
      old_password = serializers.CharField(write_only=True, required=True)
