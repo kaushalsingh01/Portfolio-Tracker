@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from .models import Stock
 
+class StockSearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stock
+        fields = ('id', 'symbol', 'company_name', 'sector')
+        
 class StockSerializer(serializers.ModelSerializer):
     current_price = serializers.SerializerMethodField()
     day_change = serializers.SerializerMethodField()
@@ -23,12 +28,10 @@ class StockSerializer(serializers.ModelSerializer):
         return None
 
     def get_day_change(self, obj):
-        # Placeholder for actual logic
-        return None
+        return self.context.get('stock_service', {}).get('current_price', None)
 
     def get_day_change_percentage(self, obj):
-        # Placeholder for actual logic
-        return None
+        return self.context.get('stock_service', {}).get('price_change_percentage', None)
 
     def get_is_in_user_portfolio(self, obj):
         request = self.context.get('request')
@@ -42,6 +45,7 @@ class StockSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Stock symbol cannot exceed 10 characters.")
         return value
 
+
     def validate_company_name(self, value):
         if len(value.strip()) < 2:
             raise serializers.ValidationError("Company name must be at least 2 characters.")
@@ -50,15 +54,38 @@ class StockSerializer(serializers.ModelSerializer):
 class StockDetailSerializer(StockSerializer):
     market_cap = serializers.SerializerMethodField()
     pe_ratio = serializers.SerializerMethodField()
+    volume = serializers.SerializerMethodField()
+    day_high = serializers.SerializerMethodField()
+    day_low = serializers.SerializerMethodField()
+    year_high = serializers.SerializerMethodField()
+    year_low = serializers.SerializerMethodField()
 
     class Meta(StockSerializer.Meta):
-        fields = StockSerializer.Meta.fields + ('market_cap', 'pe_ratio')
+        fields = StockSerializer.Meta.fields + (
+            'market_cap', 'pe_ratio', 'volume', 'day_high', 'day_low',
+            'year_high', 'year_low'
+            )
 
     def get_market_cap(self, obj):
-        return None  # Placeholder
-
+        return self.context.get('stock_service', {}).get('market_cap', None)
+    
     def get_pe_ratio(self, obj):
-        return None  # Placeholder
+        return self.context.get('stock_service', {}).get('pe_ratio', None)
+    
+    def get_volume(self, obj):
+        return self.context.get('stock_service', {}).get('volume', None)
+    
+    def get_day_high(self, obj):
+        return self.context.get('stock_service', {}).get('day_high', None)
+    
+    def get_day_low(self, obj):
+        return self.context.get('stock_service', {}).get('day_low', None)
+    
+    def get_year_high(self, obj):
+        return self.context.get('stock_service', {}).get('year_high', None)
+    
+    def get_year_low(self, obj):
+        return self.context.get('stock_service', {}).get('year_low', None)
 
 class StockCreateUpdateSerializer(serializers.ModelSerializer):
     """To be used by admin only"""
@@ -75,3 +102,14 @@ class StockCreateUpdateSerializer(serializers.ModelSerializer):
         if 'symbol' in validated_data:
             validated_data['symbol'] = validated_data['symbol'].upper()
         return super().update(instance, validated_data)
+
+class HistoricalDataSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    open = serializers.DecimalField(max_digits=10, decimal_places=2)
+    high = serializers.DecimalField(max_digits=10, decimal_places=2)
+    low = serializers.DecimalField(max_digits=10, decimal_places=2)
+    close = serializers.DecimalField(max_digits=10, decimal_places=2)
+    volume = serializers.IntegerField()
+
+    class Meta:
+        fields = ('date','open', 'high', 'low', 'close', 'volume')
