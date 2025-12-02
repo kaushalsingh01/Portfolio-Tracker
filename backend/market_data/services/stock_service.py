@@ -1,9 +1,25 @@
 import yfinance as yf
 import requests
-from ..models import Stock
+from market_data.models import Stock
 
 class StockService:
     ALPHA_VANTAGE_API_KEY = '2RR0BFP2CP2N9FL9'
+
+    @staticmethod 
+    def get_current_price(symbol):
+        try:
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            if info:
+                current_price = info.get('currentPrice')
+                return current_price
+            else:
+                print(f"No data available for {symbol}.")
+                return None
+        except Exception as e:
+            print(f"Unable to fetch data for {symbol}. Error occured {e}")
+            return None
+        
     @staticmethod
     def get_real_time_quote(symbol):
         try:
@@ -98,7 +114,9 @@ class StockService:
             return None
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    current = StockService.get_current_price('AAPL')
+    print(current)
 #     results = StockService.search_stocks("apple")
 #     print("Search results for 'apple':")
 #     for stock in results:

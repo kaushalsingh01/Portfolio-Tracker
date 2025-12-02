@@ -4,13 +4,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
-from .models import Stock
-from .serializers import StockSerializer, StockDetailSerializer, StockSearchSerializer, HistoricalDataSerializer
-from .services.stock_service import StockService
+from market_data.models import Stock
+from market_data.serializers import StockSerializer, StockDetailSerializer, StockSearchSerializer, HistoricalDataSerializer
+from market_data.services.stock_service import StockService
 
 class StockViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
-    queryset = Stock.object.all()
+    queryset = Stock.objects.all()
 
     def get_serializer_class(self):
         if self.action == 'list':
