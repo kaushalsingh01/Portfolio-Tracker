@@ -44,8 +44,8 @@ INSTALLED_APPS = [
     'users',
     'analysis',
     'market_data',
-    'ipo',
-    'notifications',
+    # 'ipo',
+    # 'notifications',
 ]
 
 MIDDLEWARE = [
