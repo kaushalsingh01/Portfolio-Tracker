@@ -3,10 +3,8 @@ import { stockService } from "../services/stockService";
 import toast from "react-hot-toast";
 
 export const useStock = (stockId) => {
-    const [stocks, setStocks] = useState(null);
-    const [details, setDetails] = useState(null);
-    const [history, setHistory] = useState(null);
-    const [quote, setQuote] = useState(null);
+    const [stocks, setStocks] = useState(null);       // list or searched/popular stocks
+    const [stockData, setStockData] = useState(null); // unified object for details/history/quote
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -53,43 +51,25 @@ export const useStock = (stockId) => {
         }
     };
 
-    const fetchStockDetails = async (id) => {
+    // Unified bundle fetcher
+    const fetchStockBundle = async (id) => {
         setLoading(true);
         try {
-            const response = await stockService.getStockDetail(id);
-            setDetails(response.data);
-            setError(null);
-        } catch (err) {
-            setError(err);
-            toast.error("Failed to fetch stock details");
-        } finally {
-            setLoading(false);
-        }
-    };
+            const [detailsRes, historyRes, quoteRes] = await Promise.all([
+                stockService.getStockDetail(id),
+                stockService.getStockHistory(id),
+                stockService.getStockQuote(id),
+            ]);
 
-    const fetchStockHistory = async (id) => {
-        setLoading(true);
-        try {
-            const response = await stockService.getStockHistory(id);
-            setHistory(response.data);
+            setStockData({
+                details: detailsRes.data,
+                history: historyRes.data,
+                quote: quoteRes.data,
+            });
             setError(null);
         } catch (err) {
             setError(err);
-            toast.error("Failed to fetch stock history");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchStockQuote = async (id) => {
-        setLoading(true);
-        try {
-            const response = await stockService.getStockQuote(id);
-            setQuote(response.data);
-            setError(null);
-        } catch (err) {
-            setError(err);
-            toast.error("Failed to fetch stock real time quote");
+            toast.error("Failed to fetch stock bundle");
         } finally {
             setLoading(false);
         }
@@ -97,24 +77,18 @@ export const useStock = (stockId) => {
 
     useEffect(() => {
         if (stockId) {
-            fetchStockDetails(stockId);
-            fetchStockHistory(stockId);
-            fetchStockQuote(stockId);
+            fetchStockBundle(stockId);
         }
     }, [stockId]);
 
     return {
         stocks,
-        details,
-        history,
-        quote,
+        stockData,
         loading,
         error,
         fetchStockList,
         fetchSearchedStock,
         fetchPopularStock,
-        fetchStockDetails,
-        fetchStockHistory,
-        fetchStockQuote,
+        fetchStockBundle,
     };
 };
