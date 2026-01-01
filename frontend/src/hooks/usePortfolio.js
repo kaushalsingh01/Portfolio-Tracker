@@ -1,72 +1,110 @@
 import { useState, useEffect } from "react";
 import { portfolioService } from "../services/portfolioService";
-import toast from 'react-hot-toast';
+import toast from "react-hot-toast";
 
 export const usePortfolio = (portfolioId) => {
-    const [portfolio, setPortfolio] = useState(null);
-    const [holdings, setHoldings] = useState([]);
-    const [transactions, setTransaction] = useState([]);
+    const [portfolioData, setPortfolioData] = useState(null); // unified object
     const [loading, setLoading] = useState(false);
-    const [analysis, setAnalysis] = useState(null);
+    const [error, setError] = useState(null);
 
-    const fetchPortfolio = async () => {
+    // --- Bundle fetcher ---
+    const fetchPortfolioBundle = async (id) => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const response = await portfolioService.getPortfolio(portfolioId);
-            setPortfolio(response.data);
-        } catch (error) {
-            toast.error('Failed to fetch portfolio');
+            const [portfolioRes, holdingsRes, transactionsRes, analysisRes] = await Promise.all([
+                portfolioService.getPortfolio(id),
+                portfolioService.getHoldings(id),
+                portfolioService.getTransactions(id),
+                portfolioService.getPortfolioAnalysis(id),
+            ]);
+
+            setPortfolioData({
+                portfolio: portfolioRes.data,
+                holdings: holdingsRes.data,
+                transactions: transactionsRes.data,
+                analysis: analysisRes.data,
+            });
+            setError(null);
+        } catch (err) {
+            setError(err);
+            toast.error("Failed to fetch portfolio bundle");
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchHoldings = async () => {
+    // --- Selective refetchers ---
+    const refetchPortfolio = async () => {
         try {
-            const response = await portfolioService.getHoldings(portfolioId);
-            setHoldings(response.data);
-        } catch (error) {
-            toast.error('Failed to fetch holdings');
+            const res = await portfolioService.getPortfolio(portfolioId);
+            setPortfolioData((prev) => ({ ...prev, portfolio: res.data }));
+        } catch (err) {
+            setError(err);
+            toast.error("Failed to refetch portfolio");
         }
     };
 
-    const fetchAnalysis = async () => {
+    const refetchHoldings = async () => {
         try {
-            const response = await portfolioService.getPortfolioAnalysis(portfolioId);
-            setAnalysis(response.data);
-        } catch (error) {
-            toast.error('Failed to fetch analysis');
+            const res = await portfolioService.getHoldings(portfolioId);
+            setPortfolioData((prev) => ({ ...prev, holdings: res.data }));
+        } catch (err) {
+            setError(err);
+            toast.error("Failed to refetch holdings");
         }
     };
 
+    const refetchTransactions = async () => {
+        try {
+            const res = await portfolioService.getTransactions(portfolioId);
+            setPortfolioData((prev) => ({ ...prev, transactions: res.data }));
+        } catch (err) {
+            setError(err);
+            toast.error("Failed to refetch transactions");
+        }
+    };
+
+    const refetchAnalysis = async () => {
+        try {
+            const res = await portfolioService.getPortfolioAnalysis(portfolioId);
+            setPortfolioData((prev) => ({ ...prev, analysis: res.data }));
+        } catch (err) {
+            setError(err);
+            toast.error("Failed to refetch analysis");
+        }
+    };
+
+    // --- Add transaction ---
     const addTransaction = async (transactionData) => {
+        setLoading(true);
         try {
             await portfolioService.addTransaction(portfolioId, transactionData);
-            toast.success('Transaction added successfully');
-            await Promise.all([fetchPortfolio(), fetchHoldings()]);
-        } catch (error) {
-            toast.error('Failied to add transaction');
-            throw error;
+            toast.success("Transaction added successfully");
+            await Promise.all([refetchPortfolio(), refetchHoldings(), refetchTransactions()]);
+        } catch (err) {
+            setError(err);
+            toast.error("Failed to add transaction");
+            throw err;
+        } finally {
+            setLoading(false);
         }
     };
 
     useEffect(() => {
-        if(portfolioId) {
-            fetchPortfolio();
-            fetchHoldings();
-            fetchAnalysis();
+        if (portfolioId) {
+            fetchPortfolioBundle(portfolioId);
         }
     }, [portfolioId]);
 
     return {
-        portfolio,
-        holdings,
-        transactions,
-        analysis,
+        portfolioData,
         loading,
-        fetchPortfolio,
-        fetchHoldings,
+        error,
+        fetchPortfolioBundle,
         addTransaction,
-        refetchAnalysis: fetchAnalysis
+        refetchPortfolio,
+        refetchHoldings,
+        refetchTransactions,
+        refetchAnalysis,
     };
 };
