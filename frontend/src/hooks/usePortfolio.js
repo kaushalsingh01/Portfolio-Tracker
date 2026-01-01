@@ -21,7 +21,7 @@ export const usePortfolio = (portfolioId) => {
         }
     };
 
-    const fetchHolding = async () => {
+    const fetchHoldings = async () => {
         try {
             const response = await portfolioService.getHoldings(portfolioId);
             setHoldings(response.data);
@@ -53,7 +53,7 @@ export const usePortfolio = (portfolioId) => {
     useEffect(() => {
         if(portfolioId) {
             fetchPortfolio();
-            fetchHolding();
+            fetchHoldings();
             fetchAnalysis();
         }
     }, [portfolioId]);
